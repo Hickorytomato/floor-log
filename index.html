@@ -218,6 +218,9 @@ window.FL = function (kind) {
     if (window.FLSave) window.FLSave();
     if (window.FLNow) window.FLNow();
     if (window.FLRememberJob) window.FLRememberJob();
+    if (kind === "out" && window.FLSaveFiles) {
+      setTimeout(function () { window.FLSaveFiles({ quiet: true }); }, 50);
+    }
   } catch (e) {
     alert("tap error: " + e.message);
   }
@@ -647,14 +650,14 @@ window.FL = function (kind) {
       "<div class=p-foot><span>" + footJob.replace(/</g,"&lt;") + "</span><span>Floor Log</span></div>" +
       "</div></body></html>";
   }
-  window.FLSaveFiles = function () {
+  window.FLSaveFiles = function (opts) {
+    opts = opts || {};
     window.FLSave();
     var k = viewKey;
     var ok1 = downloadBlob("floor-log-" + safeName(k) + ".txt", "text/plain;charset=utf-8", dayText(k));
-    // Build report content then save HTML
     openReport();
     var ok2 = downloadBlob("floor-log-" + safeName(k) + ".html", "text/html;charset=utf-8", reportHTML(k));
-    if (ok1 || ok2) toast("saved to Downloads");
+    if (ok1 || ok2) toast(opts.quiet ? "day saved" : "saved to Downloads");
     return false;
   };
   window.FLSaveReport = function () {
