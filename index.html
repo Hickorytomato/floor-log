@@ -121,19 +121,29 @@
     border-radius: 999px; padding: 3px 8px; margin-left: 8px;
     vertical-align: middle;
   }
+
+  .now { cursor: pointer; -webkit-user-select: none; user-select: none; }
+  .now .hint { display:block; font-size:11px; font-weight:700; letter-spacing:.08em;
+    text-transform:uppercase; opacity:.65; margin-top:4px; }
+  .now.empty .hint { opacity:.8; }
+  .edit-panel { display:none; margin-bottom:10px; }
+  .edit-panel.open { display:block; }
+  .edit-panel .row { margin-bottom:10px; }
   noscript { display:block; background:#d45c4a; color:#fff; padding:10px 12px; border-radius:10px; margin-bottom:10px; font-weight:700; }
 </style>
 </head>
 <body>
 <noscript>This file needs Acode’s Play button (the triangle). HTML Viewer will never stamp times.</noscript>
 <header>
-  <h1>Floor Log <span class="ver" id="appVer">v12</span></h1>
+  <h1>Floor Log <span class="ver" id="appVer">v13</span></h1>
   <a href="#days" id="dateLabel" class="date-btn">tap Days</a>
 </header>
-<div class="now empty" id="nowBar"><b>NOW</b>Set job and piece</div>
+<div class="now empty" id="nowBar" role="button" tabindex="0"><b>NOW</b>Set job and piece<span class="hint">tap to edit</span></div>
+<div class="edit-panel" id="editPanel">
 <div class="row">
   <div><label for="job">Job #</label><input id="job" inputmode="numeric" autocomplete="off" placeholder="261238"></div>
   <div><label for="piece">Piece #s</label><input id="piece" inputmode="text" autocomplete="off" placeholder="4, 5, 6"></div>
+</div>
 </div>
 <div class="chips-wrap">
   <div class="chip-label">Recent jobs — tap to switch</div>
@@ -228,13 +238,15 @@ window.FL = function (kind) {
     var pTag = window.FLFormatPieces(pieces);
     var j = (job.value || "").replace(/^\s+|\s+$/g, "").replace(/^#/, "");
     if ((kind === "start" || kind === "next" || kind === "switch") && !j) {
-      job.focus();
+      if (window.FLEditOpen) window.FLEditOpen("job");
+      else job.focus();
       if (window.FLToast) window.FLToast("enter a job #");
       else alert("Enter a job #");
       return false;
     }
     if ((kind === "start" || kind === "next") && !pieces.length) {
-      piece.focus();
+      if (window.FLEditOpen) window.FLEditOpen("piece");
+      else piece.focus();
       if (window.FLToast) window.FLToast("enter piece #");
       else alert("Enter piece #");
       return false;
@@ -277,6 +289,7 @@ window.FL = function (kind) {
     }
     if (window.FLFlash && line) window.FLFlash(line);
     if (window.FLGuide) window.FLGuide(kind);
+    if ((kind === "start" || kind === "next" || kind === "switch") && window.FLEditClose) window.FLEditClose();
   } catch (e) {
     alert("tap error: " + e.message);
   }
@@ -743,19 +756,42 @@ window.FL = function (kind) {
     saveRecents(arr);
     paintChips();
   }
+  function editOpen() {
+    return document.getElementById("editPanel").classList.contains("open");
+  }
+  function setEditOpen(on, focusId) {
+    var panel = document.getElementById("editPanel");
+    if (on) {
+      panel.classList.add("open");
+      if (focusId) {
+        var f = document.getElementById(focusId);
+        if (f) setTimeout(function () { f.focus(); f.select && f.select(); }, 30);
+      }
+    } else {
+      panel.classList.remove("open");
+      var j = document.getElementById("job");
+      var p = document.getElementById("piece");
+      if (j) j.blur();
+      if (p) p.blur();
+    }
+    paintNow();
+  }
+  window.FLEditOpen = function (focusId) { setEditOpen(true, focusId || "job"); };
+  window.FLEditClose = function () { setEditOpen(false); };
   function paintNow() {
     var j = document.getElementById("job").value.replace(/^\s+|\s+$/g, "").replace(/^#/, "");
     var pieces = window.FLParsePieces(document.getElementById("piece").value);
     var pTag = window.FLFormatPieces(pieces);
     var el = document.getElementById("nowBar");
+    var hint = editOpen() ? "tap to hide" : "tap to edit";
     if (!j && !pieces.length) {
       el.className = "now empty";
-      el.innerHTML = "<b>NOW</b>Enter a job # to start";
+      el.innerHTML = "<b>NOW</b>Enter a job # to start<span class=\"hint\">" + hint + "</span>";
       return;
     }
     el.className = "now";
     var pieceLabel = !pieces.length ? "Piece —" : (pieces.length === 1 ? ("Piece " + pTag) : ("Pieces " + pTag));
-    el.innerHTML = "<b>NOW</b>" + (j ? "Job #" + j : "Job —") + "  ·  " + pieceLabel;
+    el.innerHTML = "<b>NOW</b>" + (j ? "Job #" + j : "Job —") + "  ·  " + pieceLabel + "<span class=\"hint\">" + hint + "</span>";
   }
   function paintChips() {
     var box = document.getElementById("chips");
@@ -823,6 +859,18 @@ window.FL = function (kind) {
     });
   }
   seedRecents();
+  var nowBar = document.getElementById("nowBar");
+  nowBar.addEventListener("click", function () {
+    if (editOpen()) setEditOpen(false);
+    else setEditOpen(true, "job");
+  });
+  nowBar.addEventListener("keydown", function (e) {
+    if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      if (editOpen()) setEditOpen(false);
+      else setEditOpen(true, "job");
+    }
+  });
   paintNow();
   paintChips();
   if (window.FLMarkNext) window.FLMarkNext("start");
