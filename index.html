@@ -1,0 +1,612 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0e0e10">
+<title>Floor Log</title>
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<style>
+  :root { --bg:#0e0e10; --card:#1a1a1f; --ink:#f3f1ea; --muted:#9a968c; --line:#2a2a31;
+    --amber:#e6b84d; --green:#3dba7a; --red:#d45c4a; --blue:#4a8fd4; }
+  * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  html,body { margin:0; padding:0; background:var(--bg); color:var(--ink);
+    font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; }
+  body { padding:max(12px,env(safe-area-inset-top)) 12px max(18px,env(safe-area-inset-bottom)); max-width:480px; margin:0 auto; }
+  header { display:flex; align-items:baseline; justify-content:space-between; margin-bottom:10px; }
+  h1 { font-size:22px; margin:0; }
+  #dateLabel { color:var(--muted); font-size:16px; background:none; border:0; font-family:inherit; text-decoration:underline dotted; }
+  .row { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:10px; }
+  label { display:block; font-size:12px; color:var(--muted); margin-bottom:4px; text-transform:uppercase; letter-spacing:.08em; }
+  input, textarea { width:100%; font-weight:700; padding:12px 10px; border-radius:10px;
+    border:1px solid var(--line); background:var(--card); color:var(--ink); font-family:inherit; }
+  input { font-size:28px; }
+  .btns { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:10px; }
+  .btns a, .tools a, .wide a, .rep-bar a, .sheet .close, .day-item a, .chips a {
+    display:flex; align-items:center; justify-content:center; text-decoration:none; text-align:center;
+    -webkit-user-select:none; user-select:none;
+  }
+  .btns a { min-height:64px; font-size:17px; font-weight:700; border-radius:12px; color:#111; padding:10px 8px; }
+  .b-start { background:var(--green); }
+  .b-qc { background:var(--blue); color:#fff; }
+  .b-done { background:#6ea8e0; color:#111; }
+  .b-weld { background:var(--amber); }
+  .b-robot { background:#c47a3a; color:#fff; }
+  .b-parts { background:#7a6bb8; color:#fff; }
+  .b-next { background:#d8d2c4; }
+  .b-out { background:var(--red); color:#fff; grid-column:1 / -1; }
+  .tools { display:grid; grid-template-columns:1fr 1fr 1fr 1fr; gap:8px; margin-bottom:12px; }
+  .tools a { min-height:44px; border-radius:10px; border:1px solid var(--line); background:var(--card); color:var(--ink); font-size:13px; font-weight:600; }
+  .wide { grid-template-columns:1fr; }
+  .wide.twin { grid-template-columns:1fr 1fr; }
+  .wide a { background:#26262e; font-size:15px; min-height:50px; }
+  .wide a.save { background:#3d5a40; color:#e8f5e9; }
+  textarea.log { min-height:200px; resize:vertical; font-family:ui-monospace,Menlo,Consolas,monospace; font-size:16px; font-weight:500; line-height:1.45; }
+  .toast { position:fixed; left:50%; bottom:24px; transform:translateX(-50%); background:#222; color:#fff;
+    padding:8px 14px; border-radius:999px; font-size:14px; opacity:0; pointer-events:none; z-index:99; }
+  .toast.show { opacity:1; }
+  .overlay { position:fixed; inset:0; background:rgba(0,0,0,.6); display:none; align-items:flex-end; justify-content:center; z-index:50; }
+  .overlay.show { display:flex; }
+  .sheet { background:var(--card); border-radius:16px 16px 0 0; width:100%; max-width:480px; max-height:78vh; overflow-y:auto; padding:16px 14px max(16px,env(safe-area-inset-bottom)); }
+  .sheet h2 { margin:0 0 10px; font-size:18px; }
+  .day-item { display:flex; align-items:center; justify-content:space-between; padding:12px 8px; border-bottom:1px solid var(--line); }
+  .day-item .info { font-size:15px; }
+  .day-item .cnt { color:var(--muted); font-size:12px; display:block; }
+  .day-item a { border:1px solid var(--line); background:#222229; color:var(--ink); border-radius:8px; padding:8px 10px; font-size:13px; margin-left:6px; }
+  .sheet .close { margin-top:12px; padding:12px; border-radius:10px; background:var(--amber); color:#111; font-weight:700; }
+  #report { position:fixed; inset:0; background:#0b0b0d; z-index:80; display:none; overflow-y:auto; padding:max(10px,env(safe-area-inset-top)) 10px max(10px,env(safe-area-inset-bottom)); }
+  #report.show { display:block; }
+  .paper { background:#fdfcf8; color:#14140f; border-radius:14px; padding:22px 20px 18px; max-width:460px; margin:0 auto; }
+  .p-head { display:flex; justify-content:space-between; gap:14px; border-bottom:2px solid #14140f; padding-bottom:10px; }
+  .p-brand { font-size:19px; font-weight:800; letter-spacing:.1em; }
+  .p-sub { font-size:10px; color:#6b6659; letter-spacing:.1em; text-transform:uppercase; margin-top:3px; }
+  .p-date { text-align:right; font-size:13px; font-weight:700; }
+  .p-date span { display:block; font-size:11px; color:#6b6659; }
+  .p-stats { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin:14px 0 16px; }
+  .p-stat { background:#f1eee4; border-radius:8px; padding:8px 9px; }
+  .p-stat b { display:block; font-size:17px; }
+  .p-stat i { font-style:normal; font-size:10px; color:#6b6659; text-transform:uppercase; }
+  .p-job { font-size:13px; font-weight:800; letter-spacing:.08em; background:#14140f; color:#fdfcf8;
+    padding:8px 10px; border-radius:6px; margin:16px 0 10px; }
+  .p-body > .p-job:first-child { margin-top:0; }
+  .p-block { margin-bottom:14px; padding-left:2px; }
+  .p-block-head { font-size:11px; font-weight:800; letter-spacing:.11em; text-transform:uppercase; color:#8a6a2f; border-bottom:1px solid #ded8c8; padding-bottom:3px; margin-bottom:6px; }
+  .p-line { display:flex; gap:12px; font-size:14px; line-height:1.75; }
+  .p-line .t { font-family:ui-monospace,Menlo,Consolas,monospace; font-weight:700; min-width:46px; text-align:right; }
+  .p-foot { border-top:1px solid #ded8c8; margin-top:14px; padding-top:8px; font-size:10px; color:#8b8677; display:flex; justify-content:space-between; }
+  .rep-bar { display:grid; grid-template-columns:1fr 1fr; gap:8px; max-width:460px; margin:14px auto 6px; }
+  .rep-bar a { min-height:46px; border-radius:10px; border:1px solid #2a2a31; background:#1a1a1f; color:#f3f1ea; font-size:14px; font-weight:600; }
+  .now { background:var(--amber); color:#111; font-size:20px; font-weight:800; padding:14px 12px;
+    border-radius:12px; margin-bottom:10px; text-align:center; letter-spacing:.02em; }
+  .now.empty { background:#26262e; color:var(--muted); font-weight:600; font-size:15px; }
+  .now b { display:block; font-size:11px; font-weight:800; letter-spacing:.14em; opacity:.7; margin-bottom:2px; }
+  .chips-wrap { margin-bottom:10px; }
+  .chip-label { font-size:11px; color:var(--muted); text-transform:uppercase; letter-spacing:.08em; margin-bottom:6px; }
+  .chips { display:flex; flex-wrap:wrap; gap:8px; }
+  .chips a { min-height:44px; padding:8px 14px; border-radius:999px; background:#26262e; color:var(--ink);
+    font-weight:700; font-size:16px; border:1px solid var(--line); }
+  .chips a.on { background:var(--amber); color:#111; border-color:var(--amber); }
+  .chip-hint { color:var(--muted); font-size:13px; padding:8px 0; }
+  noscript { display:block; background:#d45c4a; color:#fff; padding:10px 12px; border-radius:10px; margin-bottom:10px; font-weight:700; }
+</style>
+</head>
+<body>
+<noscript>This file needs Acode’s Play button (the triangle). HTML Viewer will never stamp times.</noscript>
+<header>
+  <h1>Floor Log</h1>
+  <a href="#days" id="dateLabel" class="date-btn">tap Days</a>
+</header>
+<div class="now empty" id="nowBar"><b>NOW</b>Set job and piece</div>
+<div class="row">
+  <div><label for="job">Job #</label><input id="job" inputmode="numeric" autocomplete="off" placeholder="261238"></div>
+  <div><label for="piece">Piece #</label><input id="piece" inputmode="numeric" autocomplete="off" placeholder="1"></div>
+</div>
+<div class="chips-wrap">
+  <div class="chip-label">Recent jobs — tap to switch</div>
+  <div class="chips" id="chips"><span class="chip-hint">jobs you use land here</span></div>
+</div>
+<div class="btns">
+  <a class="b-start" href="javascript:FL('start')">Start</a>
+  <a class="b-qc" href="javascript:FL('locate')">Locate QC</a>
+  <a class="b-done" href="javascript:FL('qcdone')">QC done</a>
+  <a class="b-weld" href="javascript:FL('weld')">Grind and weld</a>
+  <a class="b-parts" href="javascript:FL('parts')">Looking for parts</a>
+  <a class="b-next" href="javascript:FL('next')">Next piece</a>
+  <a class="b-robot" href="javascript:FL('robot')">Drop at robot</a>
+  <a class="b-out" href="javascript:FL('out')">Clock out</a>
+</div>
+<script>
+window.FL = function (kind) {
+  try {
+    var log = document.getElementById("log");
+    var job = document.getElementById("job");
+    var piece = document.getElementById("piece");
+    var d = new Date();
+    var h = d.getHours() % 12; if (h === 0) h = 12;
+    var m = d.getMinutes();
+    var t = h + ":" + (m < 10 ? "0" : "") + m;
+    var p = (piece.value || "").replace(/^\s+|\s+$/g, "").replace(/^#/, "");
+    var j = (job.value || "").replace(/^\s+|\s+$/g, "").replace(/^#/, "");
+    var line = "";
+    if (kind === "start") line = t + " start" + (p ? " #" + p : "") + (j ? "  job #" + j : "");
+    else if (kind === "locate") line = t + " locate qc";
+    else if (kind === "qcdone") line = t + " qc done";
+    else if (kind === "weld") line = t + " grind and weld";
+    else if (kind === "robot") line = t + " dropped at robot";
+    else if (kind === "parts") line = t + " looking for parts";
+    else if (kind === "next") {
+      var n = parseInt(p, 10);
+      piece.value = isFinite(n) ? String(n + 1) : "1";
+      p = piece.value;
+      line = t + " start #" + p + (j ? "  job #" + j : "");
+      if (log.value) log.value += "\n";
+    }
+    else if (kind === "out") line = t + " clock out";
+    else if (kind === "switch") line = t + " switch to job" + (j ? " #" + j : "");
+    if (!line) return false;
+    if (kind === "next" && log.value.slice(-1) !== "\n" && log.value) {
+      /* blank line already handled */
+    }
+    if (kind === "next" || kind === "switch") {
+      if (log.value && log.value.slice(-1) !== "\n") log.value += "\n";
+      if (log.value) log.value += "\n";
+    }
+    if (kind !== "next") {
+      log.value = log.value ? (log.value + "\n" + line) : line;
+    } else {
+      log.value = log.value ? (log.value + line) : line;
+    }
+    log.scrollTop = log.scrollHeight;
+    if (window.FLSave) window.FLSave();
+    if (window.FLNow) window.FLNow();
+    if (window.FLRememberJob) window.FLRememberJob();
+  } catch (e) {
+    alert("tap error: " + e.message);
+  }
+  return false;
+};
+</script>
+<div class="tools">
+  <a href="javascript:FL('switch')">Switch job</a>
+  <a href="javascript:FLCopy()">Copy day</a>
+  <a href="javascript:FLUndo()">Undo</a>
+  <a href="#days">Days</a>
+</div>
+<textarea class="log" id="log" spellcheck="false" placeholder="tap a button. time stamps itself. or type here."></textarea>
+<div class="tools wide twin">
+  <a href="#report">Report</a>
+  <a class="save" href="javascript:FLSaveFiles()">Save files</a>
+</div>
+<div class="toast" id="toast"></div>
+<div class="overlay" id="daysOverlay">
+  <div class="sheet">
+    <h2>Days</h2>
+    <div id="daysList"></div>
+    <a class="close" href="#ok">Close</a>
+  </div>
+</div>
+<div id="report">
+  <div class="paper">
+    <div class="p-head">
+      <div>
+        <div class="p-brand">FLOOR LOG</div>
+        <div class="p-sub">Anthony Duhon · Pipe Fitter</div>
+      </div>
+      <div class="p-date" id="pDate"><span>Shift</span></div>
+    </div>
+    <div class="p-stats" id="pStats"></div>
+    <div class="p-body" id="pBody"></div>
+    <div class="p-foot"><span id="pJob"></span><span>Floor Log</span></div>
+  </div>
+  <div class="rep-bar" style="grid-template-columns:1fr 1fr 1fr;">
+    <a href="javascript:FLCopy()">Copy</a>
+    <a class="save" href="javascript:FLSaveReport()" style="background:#3d5a40;color:#e8f5e9;">Save HTML</a>
+    <a href="#ok">Back</a>
+  </div>
+</div>
+<script>
+(function () {
+  var KEY = "floor-log-v1";
+  var mem = "";
+  function todayKey() {
+    var x = new Date();
+    return (x.getMonth()+1) + "/" + x.getDate() + "/" + String(x.getFullYear()).slice(-2);
+  }
+  var viewKey = todayKey();
+  function load() {
+    try { var raw = localStorage.getItem(KEY); if (raw) return JSON.parse(raw); } catch (e) {}
+    try { if (mem) return JSON.parse(mem); } catch (e2) {}
+    return {};
+  }
+  function save(db) {
+    var s = JSON.stringify(db);
+    mem = s;
+    try { localStorage.setItem(KEY, s); } catch (e) {}
+  }
+  window.FLSave = function () {
+    var db = load();
+    if (!db[viewKey]) db[viewKey] = { job:"", piece:"", lines:[] };
+    var r = db[viewKey];
+    var log = document.getElementById("log");
+    r.lines = log.value.replace(/\s+$/,"").split("\n");
+    if (r.lines.length === 1 && r.lines[0] === "") r.lines = [];
+    r.job = document.getElementById("job").value.replace(/^\s+|\s+$/g,"");
+    r.piece = document.getElementById("piece").value.replace(/^\s+|\s+$/g,"");
+    save(db);
+  };
+  function rec(k) {
+    var db = load();
+    if (!db[k]) db[k] = { job:"", piece:"", lines:[] };
+    return db[k];
+  }
+  function render() {
+    var r = rec(viewKey);
+    document.getElementById("dateLabel").textContent = viewKey + (viewKey === todayKey() ? " (today)" : "");
+    document.getElementById("job").value = r.job || "";
+    document.getElementById("piece").value = r.piece || "";
+    document.getElementById("log").value = (r.lines || []).join("\n");
+  }
+  function toast(msg) {
+    var el = document.getElementById("toast");
+    el.textContent = msg; el.className = "toast show";
+    setTimeout(function(){ el.className = "toast"; }, 1400);
+  }
+  window.FLCopy = function () {
+    window.FLSave();
+    var r = rec(viewKey);
+    var text = viewKey + "\n" + (r.lines || []).join("\n");
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(function(){ toast("copied"); }, function(){ toast("copy failed"); });
+    } else toast("copy failed");
+    return false;
+  };
+  window.FLUndo = function () {
+    window.FLSave();
+    var db = load();
+    var r = rec(viewKey);
+    if (!r.lines.length) return false;
+    r.lines.pop();
+    while (r.lines.length && r.lines[r.lines.length-1] === "") r.lines.pop();
+    db[viewKey] = r; save(db);
+    document.getElementById("log").value = r.lines.join("\n");
+    toast("undid last line");
+    return false;
+  };
+  function fixYear(k) {
+    var p = k.split("/");
+    if (p.length === 3 && p[2].length === 2) p[2] = "20" + p[2];
+    return p.join("/");
+  }
+  function openDays() {
+    window.FLSave();
+    var keys = Object.keys(load()).sort(function(a,b){ return new Date(fixYear(b)) - new Date(fixYear(a)); });
+    var list = document.getElementById("daysList");
+    list.innerHTML = keys.length ? "" : '<div style="color:#9a968c;padding:10px 8px;">no days yet</div>';
+    for (var i=0;i<keys.length;i++) {
+      (function(k){
+        var r = rec(k);
+        var n = 0, lines = r.lines||[];
+        for (var j=0;j<lines.length;j++) if (lines[j].replace(/^\s+|\s+$/g,"")) n++;
+        var item = document.createElement("div");
+        item.className = "day-item";
+        item.innerHTML = '<div class="info">'+k+(k===todayKey()?" (today)":"")+'<span class="cnt">'+n+" lines"+(r.job?" · job #"+r.job:"")+"</span></div>"+
+          '<div><a href="#ok" data-open="'+k+'">Open</a><a href="#report" data-rep="'+k+'">Report</a><a href="javascript:void(0)" data-save="'+k+'">Save</a></div>';
+        list.appendChild(item);
+      })(keys[i]);
+    }
+    document.getElementById("daysOverlay").className = "overlay show";
+  }
+  document.getElementById("daysList").onclick = function (e) {
+    var a = e.target;
+    if (a.getAttribute && a.getAttribute("data-open")) {
+      viewKey = a.getAttribute("data-open"); render();
+      document.getElementById("daysOverlay").className = "overlay";
+    }
+    if (a.getAttribute && a.getAttribute("data-rep")) {
+      viewKey = a.getAttribute("data-rep"); render();
+      document.getElementById("daysOverlay").className = "overlay";
+    }
+    if (a.getAttribute && a.getAttribute("data-save")) {
+      viewKey = a.getAttribute("data-save"); render();
+      window.FLSaveFiles();
+    }
+  };
+  function parseLine(line) {
+    var m = line.match(/^(\d{1,2}:\d{2}|\d{3,4})\s+(.*)$/);
+    return m ? {t:m[1], a:m[2]} : {t:"", a:line};
+  }
+  function toMinutes(t) {
+    if (!t) return null;
+    var hh, mm, ts = String(t);
+    if (ts.indexOf(":") >= 0) {
+      var parts = ts.split(":");
+      hh = parseInt(parts[0], 10);
+      mm = parseInt(parts[1], 10);
+    } else {
+      mm = parseInt(ts.slice(-2), 10);
+      hh = parseInt(ts.slice(0, ts.length - 2), 10);
+    }
+    if (!isFinite(hh) || !isFinite(mm)) return null;
+    if (hh >= 1 && hh <= 3) hh += 12;
+    return hh*60+mm;
+  }
+  function longDate(k) {
+    var d = new Date(fixYear(k));
+    if (isNaN(d.getTime())) return k;
+    return d.toLocaleDateString(undefined,{weekday:"short", month:"short", day:"numeric", year:"numeric"});
+  }
+  function jobFrom(text) {
+    var m = text.match(/switch to job\s*#?\s*(\d+)/i);
+    if (m) return m[1];
+    m = text.match(/job\s*#\s*(\d+)/i);
+    if (m) return m[1];
+    return "";
+  }
+  function pieceFrom(text) {
+    var m = text.match(/^start\s+#(\d+)/i);
+    return m ? m[1] : "";
+  }
+  function openReport() {
+    window.FLSave();
+    var r = rec(viewKey);
+    var lines = r.lines || [];
+    document.getElementById("pDate").innerHTML = "<span>Shift</span>" + longDate(viewKey);
+    var blocks=[], cur=[];
+    for (var i=0;i<lines.length;i++) {
+      if (!lines[i].replace(/^\s+|\s+$/g,"")) { if (cur.length) { blocks.push(cur); cur=[]; } }
+      else cur.push(lines[i]);
+    }
+    if (cur.length) blocks.push(cur);
+    var body = document.getElementById("pBody");
+    body.innerHTML = "";
+    var pieces=0, drops=0, times=[], currentJob="", lastJobShown="", jobs=[];
+    function rememberJob(j) {
+      if (!j) return;
+      currentJob = j;
+      if (jobs.indexOf(j) < 0) jobs.push(j);
+    }
+    for (var b=0;b<blocks.length;b++) {
+      var parsed=[], startLine=null, sw=null, blockJob="";
+      for (var x=0;x<blocks[b].length;x++) {
+        var p = parseLine(blocks[b][x]); parsed.push(p);
+        var mins = toMinutes(p.t); if (mins!==null) times.push(mins);
+        if (/dropped at robot|drop at robot/i.test(p.a)) drops++;
+        var jn = jobFrom(p.a); if (jn) { rememberJob(jn); blockJob = jn; }
+        if (!startLine && /^start/i.test(p.a)) startLine = p;
+        if (!sw && /switch to job/i.test(p.a)) sw = p;
+      }
+      if (!blockJob) blockJob = currentJob;
+      var head = "Entries";
+      if (startLine) {
+        var pn = pieceFrom(startLine.a);
+        head = pn ? ("Piece #" + pn) : "Piece";
+        pieces++;
+      } else if (sw) {
+        head = "Switch";
+      }
+      if (blockJob && blockJob !== lastJobShown) {
+        var band = document.createElement("div");
+        band.className = "p-job";
+        band.textContent = "Job #" + blockJob;
+        body.appendChild(band);
+        lastJobShown = blockJob;
+      }
+      var div = document.createElement("div"); div.className="p-block";
+      var h = document.createElement("div"); h.className="p-block-head";
+      h.textContent = blockJob && !startLine && sw ? ("Job #" + blockJob) : head;
+      if (!(sw && !startLine && blockJob)) {
+        div.appendChild(h);
+      }
+      for (var z=0;z<parsed.length;z++) {
+        var row = document.createElement("div"); row.className="p-line";
+        row.innerHTML = '<div class="t"></div><div class="a"></div>';
+        row.children[0].textContent = parsed[z].t;
+        row.children[1].textContent = parsed[z].a;
+        div.appendChild(row);
+      }
+      body.appendChild(div);
+    }
+    if (!blocks.length) body.innerHTML = '<div class="p-line"><div class="t"></div><div class="a">No entries yet.</div></div>';
+    var span = "—";
+    if (times.length>1) {
+      var mins2 = Math.max.apply(null,times)-Math.min.apply(null,times);
+      if (mins2>0) span = Math.floor(mins2/60)+"h "+(mins2%60)+"m";
+    }
+    document.getElementById("pStats").innerHTML =
+      '<div class="p-stat"><b>'+pieces+'</b><i>Pieces</i></div>'+
+      '<div class="p-stat"><b>'+(jobs.length || "—")+'</b><i>Jobs</i></div>'+
+      '<div class="p-stat"><b>'+span+'</b><i>On the floor</i></div>';
+    var foot = "Jobs " + (jobs.length ? jobs.map(function(j){ return "#"+j; }).join(" · ") : "—");
+    document.getElementById("pJob").textContent = foot;
+    document.getElementById("report").className = "show";
+  }
+  window.addEventListener("hashchange", function () {
+    var h = location.hash;
+    if (h === "#days") openDays();
+    else if (h === "#report") openReport();
+    else {
+      document.getElementById("daysOverlay").className = "overlay";
+      document.getElementById("report").className = "";
+    }
+  });
+
+
+  function safeName(k) {
+    return String(k).replace(/\//g, "-");
+  }
+  function downloadBlob(filename, mime, text) {
+    try {
+      var blob = new Blob([text], { type: mime });
+      var url = URL.createObjectURL(blob);
+      var a = document.createElement("a");
+      a.href = url;
+      a.download = filename;
+      a.style.display = "none";
+      document.body.appendChild(a);
+      a.click();
+      setTimeout(function () {
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      }, 800);
+      return true;
+    } catch (e) {
+      toast("save failed");
+      return false;
+    }
+  }
+  function dayText(k) {
+    var r = rec(k);
+    return k + "\n" + (r.lines || []).join("\n");
+  }
+  function reportHTML(k) {
+    window.FLSave();
+    var paper = document.getElementById("paper") || document.querySelector(".paper");
+    // Ensure report is built
+    if (!document.getElementById("report").className || document.getElementById("report").className.indexOf("show") < 0) {
+      // call openReport without showing permanently - build content
+      openReport();
+    }
+    var bodyHtml = document.getElementById("pBody").innerHTML;
+    var statsHtml = document.getElementById("pStats").innerHTML;
+    var dateHtml = document.getElementById("pDate").innerHTML;
+    var footJob = document.getElementById("pJob").textContent || "";
+    var css = "body{margin:0;background:#0b0b0d;font-family:system-ui,-apple-system,sans-serif;}" +
+      ".paper{background:#fdfcf8;color:#14140f;max-width:460px;margin:16px auto;padding:22px 20px;border-radius:14px;}" +
+      ".p-head{display:flex;justify-content:space-between;gap:14px;border-bottom:2px solid #14140f;padding-bottom:10px;}" +
+      ".p-brand{font-size:19px;font-weight:800;letter-spacing:.1em;}" +
+      ".p-sub{font-size:10px;color:#6b6659;letter-spacing:.1em;text-transform:uppercase;margin-top:3px;}" +
+      ".p-date{text-align:right;font-size:13px;font-weight:700;}" +
+      ".p-date span{display:block;font-size:11px;color:#6b6659;}" +
+      ".p-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:14px 0 16px;}" +
+      ".p-stat{background:#f1eee4;border-radius:8px;padding:8px 9px;}" +
+      ".p-stat b{display:block;font-size:17px;}" +
+      ".p-stat i{font-style:normal;font-size:10px;color:#6b6659;text-transform:uppercase;}" +
+      ".p-job{font-size:13px;font-weight:800;letter-spacing:.08em;background:#14140f;color:#fdfcf8;padding:8px 10px;border-radius:6px;margin:16px 0 10px;}" +
+      ".p-body>.p-job:first-child{margin-top:0;}" +
+      ".p-block{margin-bottom:14px;}" +
+      ".p-block-head{font-size:11px;font-weight:800;letter-spacing:.11em;text-transform:uppercase;color:#8a6a2f;border-bottom:1px solid #ded8c8;padding-bottom:3px;margin-bottom:6px;}" +
+      ".p-line{display:flex;gap:12px;font-size:14px;line-height:1.75;}" +
+      ".p-line .t{font-family:ui-monospace,Menlo,Consolas,monospace;font-weight:700;min-width:46px;text-align:right;}" +
+      ".p-foot{border-top:1px solid #ded8c8;margin-top:14px;padding-top:8px;font-size:10px;color:#8b8677;display:flex;justify-content:space-between;}";
+    return "<!DOCTYPE html><html><head><meta charset=utf-8><meta name=viewport content=\"width=device-width,initial-scale=1\">" +
+      "<title>Floor Log " + k + "</title><style>" + css + "</style></head><body>" +
+      "<div class=paper>" +
+      "<div class=p-head><div><div class=p-brand>FLOOR LOG</div>" +
+      "<div class=p-sub>Anthony Duhon · Pipe Fitter</div></div>" +
+      "<div class=p-date>" + dateHtml + "</div></div>" +
+      "<div class=p-stats>" + statsHtml + "</div>" +
+      "<div class=p-body>" + bodyHtml + "</div>" +
+      "<div class=p-foot><span>" + footJob.replace(/</g,"&lt;") + "</span><span>Floor Log</span></div>" +
+      "</div></body></html>";
+  }
+  window.FLSaveFiles = function () {
+    window.FLSave();
+    var k = viewKey;
+    var ok1 = downloadBlob("floor-log-" + safeName(k) + ".txt", "text/plain;charset=utf-8", dayText(k));
+    // Build report content then save HTML
+    openReport();
+    var ok2 = downloadBlob("floor-log-" + safeName(k) + ".html", "text/html;charset=utf-8", reportHTML(k));
+    if (ok1 || ok2) toast("saved to Downloads");
+    return false;
+  };
+  window.FLSaveReport = function () {
+    window.FLSave();
+    openReport();
+    if (downloadBlob("floor-log-" + safeName(viewKey) + ".html", "text/html;charset=utf-8", reportHTML(viewKey))) {
+      toast("report saved");
+    }
+    return false;
+  };
+
+  var RKEY = "floor-log-recents";
+  function loadRecents() {
+    try { return JSON.parse(localStorage.getItem(RKEY) || "[]"); } catch (e) { return []; }
+  }
+  function saveRecents(arr) {
+    try { localStorage.setItem(RKEY, JSON.stringify(arr)); } catch (e) {}
+  }
+  function rememberJob(j) {
+    j = String(j || "").replace(/^\s+|\s+$/g, "").replace(/^#/, "");
+    if (!j) return;
+    var arr = loadRecents().filter(function (x) { return x !== j; });
+    arr.unshift(j);
+    if (arr.length > 6) arr = arr.slice(0, 6);
+    saveRecents(arr);
+    paintChips();
+  }
+  function paintNow() {
+    var j = document.getElementById("job").value.replace(/^\s+|\s+$/g, "").replace(/^#/, "");
+    var p = document.getElementById("piece").value.replace(/^\s+|\s+$/g, "").replace(/^#/, "");
+    var el = document.getElementById("nowBar");
+    if (!j && !p) {
+      el.className = "now empty";
+      el.innerHTML = "<b>NOW</b>Set job and piece";
+      return;
+    }
+    el.className = "now";
+    el.innerHTML = "<b>NOW</b>" + (j ? "Job #" + j : "Job —") + "  ·  " + (p ? "Piece #" + p : "Piece —");
+  }
+  function paintChips() {
+    var box = document.getElementById("chips");
+    var arr = loadRecents();
+    var cur = document.getElementById("job").value.replace(/^\s+|\s+$/g, "").replace(/^#/, "");
+    box.innerHTML = "";
+    if (!arr.length) {
+      box.innerHTML = '<span class="chip-hint">jobs you use land here</span>';
+      return;
+    }
+    for (var i = 0; i < arr.length; i++) {
+      var a = document.createElement("a");
+      a.href = "javascript:FLJob('" + arr[i] + "')";
+      a.className = arr[i] === cur ? "on" : "";
+      a.textContent = "#" + arr[i];
+      box.appendChild(a);
+    }
+  }
+  function seedRecents() {
+    var db = load();
+    var found = [];
+    Object.keys(db).forEach(function (k) {
+      var r = db[k];
+      if (r.job) found.push(String(r.job).replace(/^#/, ""));
+      (r.lines || []).forEach(function (line) {
+        var m = line.match(/job\s*#\s*(\d+)/i);
+        if (m) found.push(m[1]);
+      });
+    });
+    var arr = loadRecents();
+    for (var i = found.length - 1; i >= 0; i--) rememberJob(found[i]);
+    loadRecents();
+  }
+  window.FLNow = paintNow;
+  window.FLRememberJob = function () {
+    rememberJob(document.getElementById("job").value);
+  };
+  window.FLJob = function (j) {
+    var job = document.getElementById("job");
+    var prev = job.value.replace(/^\s+|\s+$/g, "").replace(/^#/, "");
+    job.value = j;
+    rememberJob(j);
+    paintNow();
+    if (prev !== String(j) && j) window.FL("switch");
+    else if (window.FLSave) window.FLSave();
+    return false;
+  };
+  document.getElementById("job").onchange = function () { window.FLSave(); rememberJob(this.value); paintNow(); };
+  document.getElementById("job").oninput = paintNow;
+  document.getElementById("piece").onchange = function () { window.FLSave(); paintNow(); };
+  document.getElementById("piece").oninput = paintNow;
+  document.getElementById("log").oninput = window.FLSave;
+  render();
+  if ("serviceWorker" in navigator && (location.protocol === "https:" || location.hostname === "localhost")) {
+    navigator.serviceWorker.register("./sw.js").catch(function(){});
+  }
+  seedRecents();
+  paintNow();
+  paintChips();
+})();
+</script>
+</body>
+</html>
