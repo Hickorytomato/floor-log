@@ -145,10 +145,20 @@ window.FLFormatPieces = function (arr) {
   return (arr || []).map(function (p) { return "#" + p; }).join(" ");
 };
 window.FLBumpPieces = function (arr) {
-  return (arr || []).map(function (p) {
-    var n = parseInt(p, 10);
-    return isFinite(n) ? String(n + 1) : p;
-  });
+  arr = arr || [];
+  if (!arr.length) return arr;
+  var nums = [];
+  for (var i = 0; i < arr.length; i++) {
+    var n = parseInt(arr[i], 10);
+    if (isFinite(n)) nums.push(n);
+  }
+  if (!nums.length) return arr;
+  var count = nums.length;
+  var max = nums[0];
+  for (var j = 1; j < nums.length; j++) if (nums[j] > max) max = nums[j];
+  var out = [];
+  for (var k = 1; k <= count; k++) out.push(String(max + k));
+  return out;
 };
 
 window.FL = function (kind) {
