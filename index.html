@@ -420,10 +420,35 @@ window.FL = function (kind) {
     var body = document.getElementById("pBody");
     body.innerHTML = "";
     var pieces=0, drops=0, times=[], currentJob="", lastJobShown="", jobs=[];
+    function previousDayKey(k) {
+      var keys = Object.keys(load()).sort(function (a, b) {
+        return new Date(fixYear(a)) - new Date(fixYear(b));
+      });
+      var idx = keys.indexOf(k);
+      if (idx > 0) return keys[idx - 1];
+      for (var i = keys.length - 1; i >= 0; i--) {
+        if (new Date(fixYear(keys[i])) < new Date(fixYear(k))) return keys[i];
+      }
+      return "";
+    }
     function rememberJob(j) {
       if (!j) return;
       currentJob = j;
       if (jobs.indexOf(j) < 0) jobs.push(j);
+    }
+    // Continuing a job across days: seed from yesterday, then honor early "continue"/"job #" lines.
+    var pk = previousDayKey(viewKey);
+    if (pk) {
+      var pj = (rec(pk).job || "").replace(/^#/, "");
+      if (pj) rememberJob(pj);
+    }
+    for (var li = 0; li < lines.length; li++) {
+      var raw = lines[li];
+      if (!raw || !raw.replace(/^\s+|\s+$/g, "")) continue;
+      if (/switch to job/i.test(raw)) break;
+      var jn0 = jobFrom(raw);
+      if (jn0) { rememberJob(jn0); break; }
+      if (/continue previous/i.test(raw)) break;
     }
     for (var b=0;b<blocks.length;b++) {
       var parsed=[], startLine=null, sw=null, blockJob="";
