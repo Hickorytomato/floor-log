@@ -89,6 +89,15 @@
     font-weight:700; font-size:16px; border:1px solid var(--line); }
   .chips a.on { background:var(--amber); color:#111; border-color:var(--amber); }
   .chip-hint { color:var(--muted); font-size:13px; padding:8px 0; }
+
+  .btns a.next-step { outline: 3px solid #fff; box-shadow: 0 0 0 3px rgba(230,184,77,.85), 0 6px 18px rgba(0,0,0,.45); transform: scale(1.02); z-index: 1; }
+  .flash-line {
+    position: fixed; left: 50%; top: 18%; transform: translateX(-50%);
+    background: #e6b84d; color: #111; font-weight: 800; font-size: 18px;
+    padding: 12px 18px; border-radius: 12px; z-index: 120; max-width: 90%;
+    text-align: center; pointer-events: none; opacity: 0; transition: opacity .15s;
+  }
+  .flash-line.show { opacity: 1; }
   noscript { display:block; background:#d45c4a; color:#fff; padding:10px 12px; border-radius:10px; margin-bottom:10px; font-weight:700; }
 </style>
 </head>
@@ -161,6 +170,32 @@ window.FLBumpPieces = function (arr) {
   return out;
 };
 
+
+window.FL_LAST_KIND = "";
+window.FLGuide = function (kind) {
+  var order = ["start","locate","qcdone","weld","robot","next"];
+  var map = { start: "locate", locate: "qcdone", qcdone: "weld", weld: "robot", robot: "next", next: "start", parts: "start", switch: "start", out: "" };
+  var next = map[kind] || "";
+  var nodes = document.querySelectorAll(".btns a[href*='FL(']");
+  for (var i = 0; i < nodes.length; i++) nodes[i].classList.remove("next-step");
+  if (!next) return;
+  for (var j = 0; j < nodes.length; j++) {
+    var href = nodes[j].getAttribute("href") || "";
+    if (href.indexOf("FL('" + next + "')") >= 0 || href.indexOf('FL("' + next + '")') >= 0) {
+      nodes[j].classList.add("next-step");
+      break;
+    }
+  }
+};
+window.FLFlash = function (text) {
+  var el = document.getElementById("flashLine");
+  if (!el) return;
+  el.textContent = text;
+  el.className = "flash-line show";
+  clearTimeout(window._flFlashT);
+  window._flFlashT = setTimeout(function () { el.className = "flash-line"; }, 900);
+};
+
 window.FL = function (kind) {
   try {
     var log = document.getElementById("log");
@@ -221,6 +256,8 @@ window.FL = function (kind) {
     if (kind === "out" && window.FLSaveFiles) {
       setTimeout(function () { window.FLSaveFiles({ quiet: true }); }, 50);
     }
+    if (window.FLFlash && line) window.FLFlash(line);
+    if (window.FLGuide) window.FLGuide(kind);
   } catch (e) {
     alert("tap error: " + e.message);
   }
@@ -238,6 +275,7 @@ window.FL = function (kind) {
   <a href="#report">Report</a>
   <a class="save" href="javascript:FLSaveFiles()">Save files</a>
 </div>
+<div class="flash-line" id="flashLine"></div>
 <div class="toast" id="toast"></div>
 <div class="overlay" id="daysOverlay">
   <div class="sheet">
@@ -472,7 +510,8 @@ window.FL = function (kind) {
     String(text).replace(/#(\d+)/g, function (_, n) { found.push(n); return _; });
     return found.length ? found.map(function (n) { return "#" + n; }).join(" ") : "";
   }
-  function openReport() {
+  function openReport(opts) {
+    opts = opts || {};
     window.FLSave();
     var r = rec(viewKey);
     var lines = r.lines || [];
@@ -569,7 +608,7 @@ window.FL = function (kind) {
       '<div class="p-stat"><b>'+span+'</b><i>On the floor</i></div>';
     var foot = "Jobs " + (jobs.length ? jobs.map(function(j){ return "#"+j; }).join(" · ") : "—");
     document.getElementById("pJob").textContent = foot;
-    document.getElementById("report").className = "show";
+    if (!opts.silent) document.getElementById("report").className = "show";
   }
   window.addEventListener("hashchange", function () {
     var h = location.hash;
@@ -615,7 +654,7 @@ window.FL = function (kind) {
     // Ensure report is built
     if (!document.getElementById("report").className || document.getElementById("report").className.indexOf("show") < 0) {
       // call openReport without showing permanently - build content
-      openReport();
+      openReport({ silent: true });
     }
     var bodyHtml = document.getElementById("pBody").innerHTML;
     var statsHtml = document.getElementById("pStats").innerHTML;
@@ -655,14 +694,14 @@ window.FL = function (kind) {
     window.FLSave();
     var k = viewKey;
     var ok1 = downloadBlob("floor-log-" + safeName(k) + ".txt", "text/plain;charset=utf-8", dayText(k));
-    openReport();
+    openReport({ silent: true });
     var ok2 = downloadBlob("floor-log-" + safeName(k) + ".html", "text/html;charset=utf-8", reportHTML(k));
     if (ok1 || ok2) toast(opts.quiet ? "day saved" : "saved to Downloads");
     return false;
   };
   window.FLSaveReport = function () {
     window.FLSave();
-    openReport();
+    openReport({ silent: true });
     if (downloadBlob("floor-log-" + safeName(viewKey) + ".html", "text/html;charset=utf-8", reportHTML(viewKey))) {
       toast("report saved");
     }
@@ -684,6 +723,10 @@ window.FL = function (kind) {
     if (arr.length > 6) arr = arr.slice(0, 6);
     saveRecents(arr);
     paintChips();
+  if (window.FLGuide) {
+    var mapStart = document.querySelector(".btns a[href*=\"FL('start')\"]");
+    if (mapStart) { document.querySelectorAll(".btns a").forEach(function(n){n.classList.remove("next-step");}); mapStart.classList.add("next-step"); }
+  }
   }
   function paintNow() {
     var j = document.getElementById("job").value.replace(/^\s+|\s+$/g, "").replace(/^#/, "");
@@ -758,6 +801,10 @@ window.FL = function (kind) {
   seedRecents();
   paintNow();
   paintChips();
+  if (window.FLGuide) {
+    var mapStart = document.querySelector(".btns a[href*=\"FL('start')\"]");
+    if (mapStart) { document.querySelectorAll(".btns a").forEach(function(n){n.classList.remove("next-step");}); mapStart.classList.add("next-step"); }
+  }
 })();
 </script>
 </body>
