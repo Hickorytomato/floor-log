@@ -241,7 +241,33 @@ window.FL = function (kind) {
     if (!db[k]) db[k] = { job:"", piece:"", lines:[] };
     return db[k];
   }
+  function lastDayKey() {
+    var keys = Object.keys(load()).sort(function (a, b) {
+      return new Date(fixYear(b)) - new Date(fixYear(a));
+    });
+    for (var i = 0; i < keys.length; i++) {
+      if (keys[i] !== todayKey()) return keys[i];
+    }
+    return "";
+  }
+  function carryIntoToday() {
+    if (viewKey !== todayKey()) return;
+    var r = rec(viewKey);
+    var hasLines = (r.lines || []).some(function (l) { return l.replace(/^\s+|\s+$/g, ""); });
+    if (hasLines) return;
+    if (r.job || r.piece) return;
+    var prev = lastDayKey();
+    if (!prev) return;
+    var p = rec(prev);
+    if (!p.job && !p.piece) return;
+    r.job = p.job || "";
+    r.piece = p.piece || "";
+    var db = load();
+    db[viewKey] = r;
+    save(db);
+  }
   function render() {
+    carryIntoToday();
     var r = rec(viewKey);
     document.getElementById("dateLabel").textContent = viewKey + (viewKey === todayKey() ? " (today)" : "");
     document.getElementById("job").value = r.job || "";
