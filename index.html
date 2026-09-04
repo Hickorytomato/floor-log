@@ -101,7 +101,7 @@
 <div class="now empty" id="nowBar"><b>NOW</b>Set job and piece</div>
 <div class="row">
   <div><label for="job">Job #</label><input id="job" inputmode="numeric" autocomplete="off" placeholder="261238"></div>
-  <div><label for="piece">Piece #</label><input id="piece" inputmode="numeric" autocomplete="off" placeholder="1"></div>
+  <div><label for="piece">Piece #s</label><input id="piece" inputmode="text" autocomplete="off" placeholder="4, 5, 6"></div>
 </div>
 <div class="chips-wrap">
   <div class="chip-label">Recent jobs — tap to switch</div>
@@ -113,11 +113,44 @@
   <a class="b-done" href="javascript:FL('qcdone')">QC done</a>
   <a class="b-weld" href="javascript:FL('weld')">Grind and weld</a>
   <a class="b-parts" href="javascript:FL('parts')">Looking for parts</a>
-  <a class="b-next" href="javascript:FL('next')">Next piece</a>
+  <a class="b-next" href="javascript:FL('next')">Next pieces</a>
   <a class="b-robot" href="javascript:FL('robot')">Drop at robot</a>
   <a class="b-out" href="javascript:FL('out')">Clock out</a>
 </div>
 <script>
+
+window.FLParsePieces = function (raw) {
+  raw = String(raw || "").replace(/#/g, " ");
+  var out = [], seen = {};
+  String(raw).split(/[\s,]+/).forEach(function (tok) {
+    tok = tok.replace(/^\s+|\s+$/g, "");
+    if (!tok) return;
+    if (/^\d+$/.test(tok)) {
+      if (!seen[tok]) { seen[tok] = 1; out.push(tok); }
+      return;
+    }
+    var m = tok.match(/^(\d+)\s*[-–—]\s*(\d+)$/);
+    if (m) {
+      var a = parseInt(m[1], 10), b = parseInt(m[2], 10);
+      if (a > b) { var tmp = a; a = b; b = tmp; }
+      for (var n = a; n <= b && n - a < 40; n++) {
+        var s = String(n);
+        if (!seen[s]) { seen[s] = 1; out.push(s); }
+      }
+    }
+  });
+  return out;
+};
+window.FLFormatPieces = function (arr) {
+  return (arr || []).map(function (p) { return "#" + p; }).join(" ");
+};
+window.FLBumpPieces = function (arr) {
+  return (arr || []).map(function (p) {
+    var n = parseInt(p, 10);
+    return isFinite(n) ? String(n + 1) : p;
+  });
+};
+
 window.FL = function (kind) {
   try {
     var log = document.getElementById("log");
@@ -127,7 +160,8 @@ window.FL = function (kind) {
     var h = d.getHours() % 12; if (h === 0) h = 12;
     var m = d.getMinutes();
     var t = h + ":" + (m < 10 ? "0" : "") + m;
-    var p = (piece.value || "").replace(/^\s+|\s+$/g, "").replace(/^#/, "");
+    var pieces = window.FLParsePieces(piece.value);
+    var pTag = window.FLFormatPieces(pieces);
     var j = (job.value || "").replace(/^\s+|\s+$/g, "").replace(/^#/, "");
     if ((kind === "start" || kind === "next" || kind === "switch") && !j) {
       job.focus();
@@ -135,18 +169,24 @@ window.FL = function (kind) {
       else alert("Enter a job #");
       return false;
     }
+    if ((kind === "start" || kind === "next") && !pieces.length) {
+      piece.focus();
+      if (window.FLToast) window.FLToast("enter piece #");
+      else alert("Enter piece #");
+      return false;
+    }
     var line = "";
-    if (kind === "start") line = t + " start" + (p ? " #" + p : "") + (j ? "  job #" + j : "");
-    else if (kind === "locate") line = t + " locate qc";
-    else if (kind === "qcdone") line = t + " qc done";
-    else if (kind === "weld") line = t + " grind and weld";
-    else if (kind === "robot") line = t + " dropped at robot";
-    else if (kind === "parts") line = t + " looking for parts";
+    if (kind === "start") line = t + " start " + pTag + (j ? "  job #" + j : "");
+    else if (kind === "locate") line = t + " locate qc" + (pTag ? "  " + pTag : "");
+    else if (kind === "qcdone") line = t + " qc done" + (pTag ? "  " + pTag : "");
+    else if (kind === "weld") line = t + " grind and weld" + (pTag ? "  " + pTag : "");
+    else if (kind === "robot") line = t + " dropped at robot" + (pTag ? "  " + pTag : "");
+    else if (kind === "parts") line = t + " looking for parts" + (pTag ? "  " + pTag : "");
     else if (kind === "next") {
-      var n = parseInt(p, 10);
-      piece.value = isFinite(n) ? String(n + 1) : "1";
-      p = piece.value;
-      line = t + " start #" + p + (j ? "  job #" + j : "");
+      var bumped = window.FLBumpPieces(pieces);
+      piece.value = bumped.join(", ");
+      pTag = window.FLFormatPieces(bumped);
+      line = t + " start " + pTag + (j ? "  job #" + j : "");
       if (log.value) log.value += "\n";
     }
     else if (kind === "out") line = t + " clock out";
@@ -414,8 +454,10 @@ window.FL = function (kind) {
     return "";
   }
   function pieceFrom(text) {
-    var m = text.match(/^start\s+#(\d+)/i);
-    return m ? m[1] : "";
+    if (!/^start\b/i.test(text)) return "";
+    var found = [];
+    String(text).replace(/#(\d+)/g, function (_, n) { found.push(n); return _; });
+    return found.length ? found.map(function (n) { return "#" + n; }).join(" ") : "";
   }
   function openReport() {
     window.FLSave();
@@ -475,7 +517,7 @@ window.FL = function (kind) {
       var head = "Entries";
       if (startLine) {
         var pn = pieceFrom(startLine.a);
-        head = pn ? ("Piece #" + pn) : "Piece";
+        head = pn ? ((pn.indexOf(" ") >= 0 ? "Pieces " : "Piece ") + pn) : "Piece";
         pieces++;
       } else if (sw) {
         head = "Switch";
@@ -632,15 +674,17 @@ window.FL = function (kind) {
   }
   function paintNow() {
     var j = document.getElementById("job").value.replace(/^\s+|\s+$/g, "").replace(/^#/, "");
-    var p = document.getElementById("piece").value.replace(/^\s+|\s+$/g, "").replace(/^#/, "");
+    var pieces = window.FLParsePieces(document.getElementById("piece").value);
+    var pTag = window.FLFormatPieces(pieces);
     var el = document.getElementById("nowBar");
-    if (!j && !p) {
+    if (!j && !pieces.length) {
       el.className = "now empty";
       el.innerHTML = "<b>NOW</b>Enter a job # to start";
       return;
     }
     el.className = "now";
-    el.innerHTML = "<b>NOW</b>" + (j ? "Job #" + j : "Job —") + "  ·  " + (p ? "Piece #" + p : "Piece —");
+    var pieceLabel = !pieces.length ? "Piece —" : (pieces.length === 1 ? ("Piece " + pTag) : ("Pieces " + pTag));
+    el.innerHTML = "<b>NOW</b>" + (j ? "Job #" + j : "Job —") + "  ·  " + pieceLabel;
   }
   function paintChips() {
     var box = document.getElementById("chips");
