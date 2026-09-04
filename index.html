@@ -90,21 +90,44 @@
   .chips a.on { background:var(--amber); color:#111; border-color:var(--amber); }
   .chip-hint { color:var(--muted); font-size:13px; padding:8px 0; }
 
-  .btns a.next-step { outline: 3px solid #fff; box-shadow: 0 0 0 3px rgba(230,184,77,.85), 0 6px 18px rgba(0,0,0,.45); transform: scale(1.02); z-index: 1; }
-  .flash-line {
-    position: fixed; left: 50%; top: 18%; transform: translateX(-50%);
-    background: #e6b84d; color: #111; font-weight: 800; font-size: 18px;
-    padding: 12px 18px; border-radius: 12px; z-index: 120; max-width: 90%;
-    text-align: center; pointer-events: none; opacity: 0; transition: opacity .15s;
+  .btns a.next-step {
+    position: relative; z-index: 2; transform: scale(1.04);
+    box-shadow: 0 0 0 4px #fff, 0 0 0 8px var(--amber), 0 10px 28px rgba(230,184,77,.55);
+    animation: nextPulse 1.1s ease-in-out infinite;
   }
-  .flash-line.show { opacity: 1; }
+  .btns a.next-step::after {
+    content: "NEXT";
+    position: absolute; top: -10px; right: -6px;
+    background: #111; color: var(--amber); font-size: 11px; font-weight: 900;
+    letter-spacing: .12em; padding: 3px 8px; border-radius: 999px;
+    border: 2px solid var(--amber);
+  }
+  @keyframes nextPulse {
+    0%, 100% { box-shadow: 0 0 0 4px #fff, 0 0 0 8px var(--amber), 0 10px 28px rgba(230,184,77,.45); }
+    50% { box-shadow: 0 0 0 5px #fff, 0 0 0 12px var(--amber), 0 12px 32px rgba(230,184,77,.7); }
+  }
+  .flash-line {
+    position: fixed; left: 50%; top: 16%; transform: translateX(-50%) scale(.96);
+    background: #e6b84d; color: #111; font-weight: 800; font-size: 20px;
+    padding: 14px 20px; border-radius: 14px; z-index: 200; max-width: 92%;
+    text-align: center; pointer-events: none; opacity: 0;
+    transition: opacity .12s, transform .12s;
+    box-shadow: 0 12px 40px rgba(0,0,0,.55);
+  }
+  .flash-line.show { opacity: 1; transform: translateX(-50%) scale(1); }
+  .ver {
+    font-size: 11px; font-weight: 700; color: var(--muted);
+    background: #26262e; border: 1px solid var(--line);
+    border-radius: 999px; padding: 3px 8px; margin-left: 8px;
+    vertical-align: middle;
+  }
   noscript { display:block; background:#d45c4a; color:#fff; padding:10px 12px; border-radius:10px; margin-bottom:10px; font-weight:700; }
 </style>
 </head>
 <body>
 <noscript>This file needs Acode’s Play button (the triangle). HTML Viewer will never stamp times.</noscript>
 <header>
-  <h1>Floor Log</h1>
+  <h1>Floor Log <span class="ver" id="appVer">v12</span></h1>
   <a href="#days" id="dateLabel" class="date-btn">tap Days</a>
 </header>
 <div class="now empty" id="nowBar"><b>NOW</b>Set job and piece</div>
@@ -117,14 +140,14 @@
   <div class="chips" id="chips"><span class="chip-hint">jobs you use land here</span></div>
 </div>
 <div class="btns">
-  <a class="b-start" href="javascript:FL('start')">Start</a>
-  <a class="b-qc" href="javascript:FL('locate')">Locate QC</a>
-  <a class="b-done" href="javascript:FL('qcdone')">QC done</a>
-  <a class="b-weld" href="javascript:FL('weld')">Grind and weld</a>
-  <a class="b-parts" href="javascript:FL('parts')">Looking for parts</a>
-  <a class="b-next" href="javascript:FL('next')">Next pieces</a>
-  <a class="b-robot" href="javascript:FL('robot')">Drop at robot</a>
-  <a class="b-out" href="javascript:FL('out')">Clock out</a>
+  <a class="b-start" data-kind="start" href="javascript:FL('start')">Start</a>
+  <a class="b-qc" data-kind="locate" href="javascript:FL('locate')">Locate QC</a>
+  <a class="b-done" data-kind="qcdone" href="javascript:FL('qcdone')">QC done</a>
+  <a class="b-weld" data-kind="weld" href="javascript:FL('weld')">Grind and weld</a>
+  <a class="b-parts" data-kind="parts" href="javascript:FL('parts')">Looking for parts</a>
+  <a class="b-next" data-kind="next" href="javascript:FL('next')">Next pieces</a>
+  <a class="b-robot" data-kind="robot" href="javascript:FL('robot')">Drop at robot</a>
+  <a class="b-out" data-kind="out" href="javascript:FL('out')">Clock out</a>
 </div>
 <script>
 
@@ -172,20 +195,16 @@ window.FLBumpPieces = function (arr) {
 
 
 window.FL_LAST_KIND = "";
-window.FLGuide = function (kind) {
-  var order = ["start","locate","qcdone","weld","robot","next"];
-  var map = { start: "locate", locate: "qcdone", qcdone: "weld", weld: "robot", robot: "next", next: "start", parts: "start", switch: "start", out: "" };
-  var next = map[kind] || "";
-  var nodes = document.querySelectorAll(".btns a[href*='FL(']");
+window.FLMarkNext = function (kind) {
+  var nodes = document.querySelectorAll(".btns a");
   for (var i = 0; i < nodes.length; i++) nodes[i].classList.remove("next-step");
-  if (!next) return;
-  for (var j = 0; j < nodes.length; j++) {
-    var href = nodes[j].getAttribute("href") || "";
-    if (href.indexOf("FL('" + next + "')") >= 0 || href.indexOf('FL("' + next + '")') >= 0) {
-      nodes[j].classList.add("next-step");
-      break;
-    }
-  }
+  if (!kind) return;
+  var el = document.querySelector('.btns a[data-kind="' + kind + '"]');
+  if (el) el.classList.add("next-step");
+};
+window.FLGuide = function (kind) {
+  var map = { start: "locate", locate: "qcdone", qcdone: "weld", weld: "robot", robot: "next", next: "start", parts: "start", switch: "start", out: "start" };
+  window.FLMarkNext(map[kind] || "start");
 };
 window.FLFlash = function (text) {
   var el = document.getElementById("flashLine");
@@ -193,7 +212,7 @@ window.FLFlash = function (text) {
   el.textContent = text;
   el.className = "flash-line show";
   clearTimeout(window._flFlashT);
-  window._flFlashT = setTimeout(function () { el.className = "flash-line"; }, 900);
+  window._flFlashT = setTimeout(function () { el.className = "flash-line"; }, 1200);
 };
 
 window.FL = function (kind) {
@@ -723,10 +742,6 @@ window.FL = function (kind) {
     if (arr.length > 6) arr = arr.slice(0, 6);
     saveRecents(arr);
     paintChips();
-  if (window.FLGuide) {
-    var mapStart = document.querySelector(".btns a[href*=\"FL('start')\"]");
-    if (mapStart) { document.querySelectorAll(".btns a").forEach(function(n){n.classList.remove("next-step");}); mapStart.classList.add("next-step"); }
-  }
   }
   function paintNow() {
     var j = document.getElementById("job").value.replace(/^\s+|\s+$/g, "").replace(/^#/, "");
@@ -796,15 +811,21 @@ window.FL = function (kind) {
   applyHistorySeed();
   render();
   if ("serviceWorker" in navigator && (location.protocol === "https:" || location.hostname === "localhost")) {
-    navigator.serviceWorker.register("./sw.js").catch(function(){});
+    navigator.serviceWorker.register("./sw.js").then(function (reg) {
+      try { reg.update(); } catch (e) {}
+      setInterval(function () { try { reg.update(); } catch (e) {} }, 60 * 1000);
+    }).catch(function(){});
+    var refreshing = false;
+    navigator.serviceWorker.addEventListener("controllerchange", function () {
+      if (refreshing) return;
+      refreshing = true;
+      location.reload();
+    });
   }
   seedRecents();
   paintNow();
   paintChips();
-  if (window.FLGuide) {
-    var mapStart = document.querySelector(".btns a[href*=\"FL('start')\"]");
-    if (mapStart) { document.querySelectorAll(".btns a").forEach(function(n){n.classList.remove("next-step");}); mapStart.classList.add("next-step"); }
-  }
+  if (window.FLMarkNext) window.FLMarkNext("start");
 })();
 </script>
 </body>
