@@ -129,20 +129,37 @@
   .edit-panel { display:none; margin-bottom:10px; }
   .edit-panel.open { display:block; }
   .edit-panel .row { margin-bottom:10px; }
+
+  .piece-keys { display:grid; grid-template-columns:1fr 1fr 1fr; gap:6px; margin-top:6px; }
+  .piece-keys a {
+    display:flex; align-items:center; justify-content:center;
+    min-height:40px; border-radius:10px; background:#26262e; color:var(--ink);
+    border:1px solid var(--line); font-weight:800; font-size:16px; text-decoration:none;
+    -webkit-user-select:none; user-select:none;
+  }
+
   noscript { display:block; background:#d45c4a; color:#fff; padding:10px 12px; border-radius:10px; margin-bottom:10px; font-weight:700; }
 </style>
 </head>
 <body>
 <noscript>This file needs Acode’s Play button (the triangle). HTML Viewer will never stamp times.</noscript>
 <header>
-  <h1>Floor Log <span class="ver" id="appVer">v13</span></h1>
+  <h1>Floor Log <span class="ver" id="appVer">v14</span></h1>
   <a href="#days" id="dateLabel" class="date-btn">tap Days</a>
 </header>
 <div class="now empty" id="nowBar" role="button" tabindex="0"><b>NOW</b>Set job and piece<span class="hint">tap to edit</span></div>
 <div class="edit-panel" id="editPanel">
 <div class="row">
   <div><label for="job">Job #</label><input id="job" inputmode="numeric" autocomplete="off" placeholder="261238"></div>
-  <div><label for="piece">Piece #s</label><input id="piece" inputmode="text" autocomplete="off" placeholder="4, 5, 6"></div>
+  <div>
+  <label for="piece">Piece #s</label>
+  <input id="piece" inputmode="numeric" pattern="[0-9,\-\s]*" autocomplete="off" placeholder="4 5 6">
+  <div class="piece-keys" id="pieceKeys">
+    <a href="javascript:FLPieceKey(',')">,</a>
+    <a href="javascript:FLPieceKey('-')">–</a>
+    <a href="javascript:FLPieceKey(' ')">space</a>
+  </div>
+</div>
 </div>
 </div>
 <div class="chips-wrap">
@@ -186,6 +203,22 @@ window.FLParsePieces = function (raw) {
 window.FLFormatPieces = function (arr) {
   return (arr || []).map(function (p) { return "#" + p; }).join(" ");
 };
+
+window.FLPieceKey = function (ch) {
+  var el = document.getElementById("piece");
+  if (!el) return false;
+  var start = el.selectionStart != null ? el.selectionStart : el.value.length;
+  var end = el.selectionEnd != null ? el.selectionEnd : el.value.length;
+  var v = el.value || "";
+  el.value = v.slice(0, start) + ch + v.slice(end);
+  var pos = start + ch.length;
+  try { el.setSelectionRange(pos, pos); } catch (e) {}
+  el.focus();
+  if (window.FLNow) window.FLNow();
+  if (window.FLSave) window.FLSave();
+  return false;
+};
+
 window.FLBumpPieces = function (arr) {
   arr = arr || [];
   if (!arr.length) return arr;
