@@ -317,11 +317,8 @@ window.FL = function (kind) {
     if (window.FLSave) window.FLSave();
     if (window.FLNow) window.FLNow();
     if (window.FLRememberJob) window.FLRememberJob();
-    if (kind === "out") {
-      if (window.FLAutoWriteDayTxt) window.FLAutoWriteDayTxt({ immediate: true, toast: "day saved" });
-      if (window.FLSaveFiles) setTimeout(function () { window.FLSaveFiles({ quiet: true }); }, 80);
-    } else if (window.FLAutoWriteDayTxt) {
-      window.FLAutoWriteDayTxt();
+    if (kind === "out" && window.FLSaveFiles) {
+      setTimeout(function () { window.FLSaveFiles({ quiet: true }); }, 50);
     }
     if (window.FLFlash && line) window.FLFlash(line);
     if (window.FLGuide) window.FLGuide(kind);
@@ -758,30 +755,6 @@ window.FL = function (kind) {
       "</div></body></html>";
   }
 
-  var _autoTxtT = null;
-  window.FLAutoWriteDayTxt = function (opts) {
-    opts = opts || {};
-    var immediate = !!opts.immediate;
-    var run = function () {
-      try {
-        if (window.FLSave) window.FLSave();
-        var k = viewKey;
-        var name = "floor-log-" + safeName(k) + ".txt";
-        var ok = downloadBlob(name, "text/plain;charset=utf-8", dayText(k));
-        if (ok && opts.toast) toast(opts.toast);
-        else if (ok && immediate && !opts.silent) toast("day saved");
-      } catch (e) {}
-    };
-    if (immediate) {
-      clearTimeout(_autoTxtT);
-      _autoTxtT = null;
-      run();
-      return;
-    }
-    clearTimeout(_autoTxtT);
-    _autoTxtT = setTimeout(run, 1500);
-  };
-
   window.FLSaveFiles = function (opts) {
     opts = opts || {};
     window.FLSave();
@@ -900,14 +873,11 @@ window.FL = function (kind) {
     else if (window.FLSave) window.FLSave();
     return false;
   };
-  document.getElementById("job").onchange = function () { window.FLSave(); rememberJob(this.value); paintNow(); if (window.FLAutoWriteDayTxt) window.FLAutoWriteDayTxt(); };
+  document.getElementById("job").onchange = function () { window.FLSave(); rememberJob(this.value); paintNow(); };
   document.getElementById("job").oninput = paintNow;
-  document.getElementById("piece").onchange = function () { window.FLSave(); paintNow(); if (window.FLAutoWriteDayTxt) window.FLAutoWriteDayTxt(); };
+  document.getElementById("piece").onchange = function () { window.FLSave(); paintNow(); };
   document.getElementById("piece").oninput = paintNow;
-  document.getElementById("log").oninput = function () {
-    window.FLSave();
-    if (window.FLAutoWriteDayTxt) window.FLAutoWriteDayTxt();
-  };
+  document.getElementById("log").oninput = window.FLSave;
   applyHistorySeed();
   render();
   if ("serviceWorker" in navigator && (location.protocol === "https:" || location.hostname === "localhost")) {
