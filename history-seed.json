@@ -106,13 +106,33 @@
     ]
   },
   "9/8/26": {
-    "job": "261342",
-    "piece": "19",
+    "job": "261339",
+    "piece": "15",
     "lines": [
       "5:00 continue previous  job #261342 #18 #19",
       "5:45 continue done  #18 #19",
       "5:45 locate qc  #18 #19",
-      "qc checking now  #18 #19"
+      "qc checking now  #18 #19",
+      "6:10 qc done  #19",
+      "6:10 grind and weld  #19",
+      "6:41 dropped at robot  #19",
+      "",
+      "",
+      "6:42 switch to job #261339",
+      "6:45 start #10 #11  job #261339",
+      "7:14 locate qc  #10 #11",
+      "7:27 qc done  #10 #11",
+      "7:27 grind and weld  #10 #11",
+      "8:01 dropped at robot  #10 #11",
+      "",
+      "8:01 start #12 #13  job #261339",
+      "8:33 locate qc  #12 #13",
+      "8:44 qc done  #12 #13",
+      "8:44 grind and weld  #12 #13",
+      "9:12 dropped at robot  #12 #13",
+      "",
+      "9:16 start #14 #15  job #261339",
+      "10:22 locate qc  #14 #15"
     ]
   }
 }
